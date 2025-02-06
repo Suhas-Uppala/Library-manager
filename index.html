@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brutal Library Manager</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .brutal-box {
+            background: #ffffff;
+            border: 3px solid #000000;
+            box-shadow: 5px 5px 0px #000000;
+            transition: all 0.2s ease;
+        }
+        .brutal-box:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 7px 7px 0px #000000;
+        }
+        .brutal-button {
+            background: #ff90e8;
+            border: 3px solid #000000;
+            box-shadow: 3px 3px 0px #000000;
+            transition: all 0.2s ease;
+        }
+        .brutal-button:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0px #000000;
+        }
+        .loading {
+            @apply fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#f1f7fe]">
+    <div id="app" class="p-4">
+        <div v-if="loading" class="loading">
+            <div class="text-white text-2xl">Loading...</div>
+        </div>
+
+        <div v-if="!isLoggedIn" class="max-w-md mx-auto mt-10">
+            <div v-if="!showSignup" class="brutal-box p-6">
+                <h2 class="text-2xl font-bold mb-6">Login to Library</h2>
+                <input v-model="loginForm.email" type="email" placeholder="Email" class="w-full mb-4 p-2 brutal-box">
+                <input v-model="loginForm.password" type="password" placeholder="Password" class="w-full mb-4 p-2 brutal-box">
+                <select v-model="loginForm.role" class="w-full mb-4 p-2 brutal-box">
+                    <option value="user">User</option>
+                    <option value="owner">Library Owner</option>
+                </select>
+                <button @click="login" class="brutal-button w-full p-2 mb-4">Login</button>
+                <p class="text-center">
+                    Don't have an account? 
+                    <button @click="showSignup = true" class="text-blue-600 underline">Sign up</button>
+                </p>
+            </div>
+
+            <div v-else class="brutal-box p-6">
+                <h2 class="text-2xl font-bold mb-6">Create Account</h2>
+                <input v-model="signupForm.name" type="text" placeholder="Name" class="w-full mb-4 p-2 brutal-box">
+                <input v-model="signupForm.email" type="email" placeholder="Email" class="w-full mb-4 p-2 brutal-box">
+                <input v-model="signupForm.password" type="password" placeholder="Password" class="w-full mb-4 p-2 brutal-box">
+                <select v-model="signupForm.role" class="w-full mb-4 p-2 brutal-box">
+                    <option value="user">User</option>
+                    <option value="owner">Library Owner</option>
+                </select>
+                <button @click="signup" class="brutal-button w-full p-2 mb-4">Sign Up</button>
+                <p class="text-center">
+                    Already have an account? 
+                    <button @click="showSignup = false" class="text-blue-600 underline">Login</button>
+                </p>
+            </div>
+        </div>
+
+        <div v-else>
+            <div class="brutal-box p-4 mb-6 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Brutal Library Manager</h1>
+                <div class="flex items-center gap-4">
+                    <span>Welcome, {{ user.name }}</span>
+                    <button @click="logout" class="brutal-button px-4 py-2">Logout</button>
+                </div>
+            </div>
+
+            <div v-if="user.role === 'owner'" class="space-y-6">
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">Add New Book</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input v-model="newBook.title" type="text" placeholder="Book Title" class="brutal-box p-2">
+                        <input v-model="newBook.author" type="text" placeholder="Author" class="brutal-box p-2">
+                        <input v-model="newBook.isbn" type="text" placeholder="ISBN" class="brutal-box p-2">
+                        <input v-model="newBook.quantity" type="number" placeholder="Quantity" class="brutal-box p-2">
+                    </div>
+                    <button @click="addBook" class="brutal-button w-full mt-4 p-2">Add Book</button>
+                </div>
+
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">Manage Books</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b-2 border-black">
+                                    <th class="p-2 text-left">Title</th>
+                                    <th class="p-2 text-left">Author</th>
+                                    <th class="p-2 text-left">ISBN</th>
+                                    <th class="p-2 text-left">Available</th>
+                                    <th class="p-2 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="book in books" :key="book._id" class="border-b border-black">
+                                    <td class="p-2">{{ book.title }}</td>
+                                    <td class="p-2">{{ book.author }}</td>
+                                    <td class="p-2">{{ book.isbn }}</td>
+                                    <td class="p-2">{{ book.quantity }}</td>
+                                    <td class="p-2">
+                                        <button @click="deleteBook(book._id)" class="brutal-button px-3 py-1">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">Transaction History</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b-2 border-black">
+                                    <th class="p-2 text-left">User</th>
+                                    <th class="p-2 text-left">Book</th>
+                                    <th class="p-2 text-left">Action</th>
+                                    <th class="p-2 text-left">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="transaction in transactions" :key="transaction._id" class="border-b border-black">
+                                    <td class="p-2">{{ transaction.userName }}</td>
+                                    <td class="p-2">{{ transaction.bookTitle }}</td>
+                                    <td class="p-2">{{ transaction.action }}</td>
+                                    <td class="p-2">{{ new Date(transaction.date).toLocaleDateString() }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="space-y-6">
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">Available Books</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="book in books" :key="book._id" class="brutal-box p-4">
+                            <h3 class="font-bold">{{ book.title }}</h3>
+                            <p>Author: {{ book.author }}</p>
+                            <p>Available: {{ book.quantity }}</p>
+                            <button 
+                                @click="borrowBook(book._id)" 
+                                class="brutal-button w-full mt-2 p-2"
+                                :disabled="book.quantity < 1">
+                                {{ book.quantity < 1 ? 'Not Available' : 'Borrow' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">My Borrowed Books</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="book in userBooks" :key="book._id" class="brutal-box p-4">
+                            <h3 class="font-bold">{{ book.title }}</h3>
+                            <p>Author: {{ book.author }}</p>
+                            <button @click="returnBook(book._id)" class="brutal-button w-full mt-2 p-2">
+                                Return Book
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="brutal-box p-6">
+                    <h2 class="text-xl font-bold mb-4">My History</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b-2 border-black">
+                                    <th class="p-2 text-left">Book</th>
+                                    <th class="p-2 text-left">Action</th>
+                                    <th class="p-2 text-left">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="transaction in userTransactions" :key="transaction._id" class="border-b border-black">
+                                    <td class="p-2">{{ transaction.bookTitle }}</td>
+                                    <td class="p-2">{{ transaction.action }}</td>
+                                    <td class="p-2">{{ new Date(transaction.date).toLocaleDateString() }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    isLoggedIn: false,
+                    showSignup: false,
+                    user: null,
+                    loginForm: {
+                        email: '',
+                        password: '',
+                        role: 'user'
+                    },
+                    signupForm: {
+                        name: '',
+                        email: '',
+                        password: '',
+                        role: 'user'
+                    },
+                    newBook: {
+                        title: '',
+                        author: '',
+                        isbn: '',
+                        quantity: 1
+                    },
+                    books: [],
+                    transactions: [],
+                    userBooks: [],
+                    userTransactions: []
+                }
+            },
+            mounted() {
+                const userData = localStorage.getItem('user')
+                if (userData) {
+                    this.user = JSON.parse(userData)
+                    this.isLoggedIn = true
+                    this.loadData()
+                }
+            },
+            methods: {
+                async signup() {
+                    this.loading = true
+                    try {
+                        const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'create',
+                                collection: 'users',
+                                data: this.signupForm
+                            })
+                        })
+                        const data = await response.json()
+                        if (data.success) {
+                            this.user = { ...this.signupForm, _id: data.result.insertedId }
+                            localStorage.setItem('user', JSON.stringify(this.user))
+                            this.isLoggedIn = true
+                            this.loadData()
+                        }
+                    } catch (error) {
+                        console.error('Signup error:', error)
+                        alert('Signup failed')
+                    }
+                    this.loading = false
+                },
+
+                async login() {
+                    this.loading = true
+                    try {
+                        const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'read',
+                                collection: 'users',
+                                conditions: this.loginForm
+                            })
+                        })
+                        const data = await response.json()
+                        if (data.success && data.result.length > 0) {
+                            this.user = data.result[0]
+                            localStorage.setItem('user', JSON.stringify(this.user))
+                            this.isLoggedIn = true
+                            this.loadData()
+                        } else {
+                            alert('Invalid credentials')
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error)
+                        alert('Login failed')
+                    }
+                    this.loading = false
+                },
+
+                logout() {
+                    this.isLoggedIn = false
+                    this.user = null
+                    localStorage.removeItem('user')
+                },
+
+                async loadData() {
+                    this.loading = true
+                    try {
+                        const booksResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'read',
+                                collection: 'books'
+                            })
+                        })
+                        const booksData = await booksResponse.json()
+                        if (booksData.success) {
+                            this.books = booksData.result
+                        }
+
+                        const transactionsResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'read',
+                                collection: 'transactions',
+                                conditions: this.user.role === 'user' ? { userId: this.user._id } : {}
+                            })
+                        })
+                        const transactionsData = await transactionsResponse.json()
+                        if (transactionsData.success) {
+                            if (this.user.role === 'user') {
+                                this.userTransactions = transactionsData.result
+                            } else {
+                                this.transactions = transactionsData.result
+                            }
+                        }
+
+                        if (this.user.role === 'user') {
+                            const userBooksResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    appSlug: 'library-manager-123456',
+                                    action: 'read',
+                                    collection: 'borrowed_books',
+                                    conditions: { userId: this.user._id }
+                                })
+                            })
+                            const userBooksData = await userBooksResponse.json()
+                            if (userBooksData.success) {
+                                this.userBooks = userBooksData.result
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Load data error:', error)
+                        alert('Failed to load data')
+                    }
+                    this.loading = false
+                },
+
+                async addBook() {
+                    this.loading = true
+                    try {
+                        const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'create',
+                                collection: 'books',
+                                data: this.newBook
+                            })
+                        })
+                        const data = await response.json()
+                        if (data.success) {
+                            this.loadData()
+                            this.newBook = { title: '', author: '', isbn: '', quantity: 1 }
+                        }
+                    } catch (error) {
+                        console.error('Add book error:', error)
+                        alert('Failed to add book')
+                    }
+                    this.loading = false
+                },
+
+                async deleteBook(bookId) {
+                    this.loading = true
+                    try {
+                        const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'delete',
+                                collection: 'books',
+                                id: bookId
+                            })
+                        })
+                        const data = await response.json()
+                        if (data.success) {
+                            this.loadData()
+                        }
+                    } catch (error) {
+                        console.error('Delete book error:', error)
+                        alert('Failed to delete book')
+                    }
+                    this.loading = false
+                },
+
+                async borrowBook(bookId) {
+                    this.loading = true
+                    try {
+                        const book = this.books.find(b => b._id === bookId)
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'update',
+                                collection: 'books',
+                                id: bookId,
+                                data: { quantity: book.quantity - 1 }
+                            })
+                        });
+
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'create',
+                                collection: 'borrowed_books',
+                                data: {
+                                    userId: this.user._id,
+                                    bookId: bookId,
+                                    title: book.title,
+                                    author: book.author
+                                }
+                            })
+                        });
+
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'create',
+                                collection: 'transactions',
+                                data: {
+                                    userId: this.user._id,
+                                    userName: this.user.name,
+                                    bookId: bookId,
+                                    bookTitle: book.title,
+                                    action: 'borrowed',
+                                    date: new Date()
+                                }
+                            })
+                        });
+
+                        this.loadData();
+                    } catch (error) {
+                        console.error('Borrow book error:', error)
+                        alert('Failed to borrow book')
+                    }
+                    this.loading = false
+                },
+
+                async returnBook(bookId) {
+                    this.loading = true
+                    try {
+                        const book = this.books.find(b => b._id === bookId)
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'update',
+                                collection: 'books',
+                                id: bookId,
+                                data: { quantity: book.quantity + 1 }
+                            })
+                        });
+
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'delete',
+                                collection: 'borrowed_books',
+                                conditions: {
+                                    userId: this.user._id,
+                                    bookId: bookId
+                                }
+                            })
+                        });
+
+                        await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer rr6bqil5mbXq0drB0ABahp2I76B2',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: 'library-manager-123456',
+                                action: 'create',
+                                collection: 'transactions',
+                                data: {
+                                    userId: this.user._id,
+                                    userName: this.user.name,
+                                    bookId: bookId,
+                                    bookTitle: book.title,
+                                    action: 'returned',
+                                    date: new Date()
+                                }
+                            })
+                        });
+
+                        this.loadData();
+                    } catch (error) {
+                        console.error('Return book error:', error)
+                        alert('Failed to return book')
+                    }
+                    this.loading = false
+                }
+            }
+        }).mount('#app')
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
