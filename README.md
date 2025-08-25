@@ -4,7 +4,7 @@ This project is a library management system that helps in organizing and managin
 ## Installation
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/library_manager.git
+    git clone https://github.com/Suhas-Uppala/Library-manager.git
     ```
 2. Navigate to the project directory:
     ```sh
